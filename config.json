@@ -1,23 +1,24 @@
 {
-    "model" : {
-        "min_input_size":       288,
+     "model" : {
+        "min_input_size":       352,
         "max_input_size":       448,
-        "anchors":              [55,69, 75,234, 133,240, 136,129, 142,363, 203,290, 228,184, 285,359, 341,260],
-        "labels":               ["kangaroo"]
+        "anchors":              [0,0, 0,0, 121,150, 180,322, 233,375, 290,298, 296,387, 368,388, 382,274],
+        "labels":               ["raccoon"]
     },
 
     "train": {
-        "train_image_folder":   "/home/andy/Desktop/github/kangaroo/images/",
-        "train_annot_folder":   "/home/andy/Desktop/github/kangaroo/annots/",
-        "cache_name":           "kangaroo_train.pkl",
+        "train_image_folder":   "/dataset/raccoon_dataset-master/images/",
+        "train_annot_folder":   "/dataset/raccoon_dataset-master/annotations/",
+        "cache_name":           "raccoon_train.pkl",
 
-        "train_times":          8,
-        "batch_size":           16,
-        "learning_rate":        1e-4,
+        "train_times":          10,
+	"pretrained_weights":   "",
+        "batch_size":           8,
+        "learning_rate":        1e-5,
         "nb_epochs":            100,
         "warmup_epochs":        3,
         "ignore_thresh":        0.5,
-        "gpus":                 "0,1",
+        "gpus":                 "0",
 
         "grid_scales":          [1,1,1],
         "obj_scale":            5,
@@ -26,14 +27,14 @@
         "class_scale":          1,
 
         "tensorboard_dir":      "logs",
-        "saved_weights_name":   "kangaroo.h5",
+        "saved_weights_name":   "raccoon_model.h5",
         "debug":                true
     },
 
     "valid": {
-        "valid_image_folder":   "",
-        "valid_annot_folder":   "",
-        "cache_name":           "",
+        "valid_image_folder":   "/dataset/raccoon_dataset-master/validation/images/",
+        "valid_annot_folder":   "/dataset/raccoon_dataset-master/validation/annots/",
+        "cache_name":           "raccoon_val.pkl",
 
         "valid_times":          1
     }

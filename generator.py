@@ -1,7 +1,7 @@
 import cv2
 import copy
 import numpy as np
-from keras.utils import Sequence
+from tensorflow.keras.utils import Sequence
 from utils.bbox import BoundBox, bbox_iou
 from utils.image import apply_random_scale_and_crop, random_distort_image, random_flip, correct_bounding_boxes
 
@@ -151,7 +151,7 @@ class BatchGenerator(Sequence):
         if idx%10 == 0:
             net_size = self.downsample*np.random.randint(self.min_net_size/self.downsample, \
                                                          self.max_net_size/self.downsample+1)
-            print("resizing: ", net_size, net_size)
+            #print("resizing: ", net_size, net_size)
             self.net_h, self.net_w = net_size, net_size
         return self.net_h, self.net_w
     
@@ -160,6 +160,7 @@ class BatchGenerator(Sequence):
         image = cv2.imread(image_name) # RGB image
         
         if image is None: print('Cannot find ', image_name)
+        #else: print('Found ', image_name)
         image = image[:,:,::-1] # RGB image
             
         image_h, image_w, _ = image.shape
@@ -225,4 +226,5 @@ class BatchGenerator(Sequence):
         return np.array(annots)
 
     def load_image(self, i):
+        #print('LOADING ' + self.instances[i]['filename'])
         return cv2.imread(self.instances[i]['filename'])     

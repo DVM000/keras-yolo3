@@ -8,9 +8,9 @@ from voc import parse_voc_annotation
 from yolo import create_yolov3_model
 from generator import BatchGenerator
 from utils.utils import normalize, evaluate
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.optimizers import Adam
-from keras.models import load_model
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import load_model
 
 def _main_(args):
     config_path = args.conf
@@ -44,6 +44,20 @@ def _main_(args):
         jitter              = 0.0, 
         norm                = normalize
     )
+
+
+    '''#print(valid_ints)
+    print('-----------------------')
+    for k in valid_generator.__dict__:
+        print(k)
+
+    i = 0
+    for k in valid_generator.instances:
+        print(i)
+        print(k)
+        i = i+1
+    #import sys; sys.exit(0)'''
+
 
     ###############################
     #   Load the model and do evaluation

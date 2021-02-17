@@ -8,13 +8,13 @@ from voc import parse_voc_annotation
 from yolo import create_yolov3_model, dummy_loss
 from generator import BatchGenerator
 from utils.utils import normalize, evaluate, makedirs
-from keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.optimizers import Adam
 from callbacks import CustomModelCheckpoint, CustomTensorBoard
 from utils.multi_gpu_model import multi_gpu_model
 import tensorflow as tf
-import keras
-from keras.models import load_model
+import tensorflow.keras
+from tensorflow.keras.models import load_model
 
 
 config = tf.compat.v1.ConfigProto(
@@ -24,6 +24,32 @@ config = tf.compat.v1.ConfigProto(
 config.gpu_options.allow_growth = True
 session = tf.compat.v1.Session(config=config)
 tf.compat.v1.keras.backend.set_session(session)
+
+
+'''def prevent_GPU_overflow(  ):
+  gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+  if len(gpu_devices):
+    tf.config.experimental.set_memory_growth(gpu_devices[0], True)
+
+prevent_GPU_overflow(  )
+
+def divide_GPU( LIMIT=4096 ):
+  gpus = tf.config.experimental.list_physical_devices('GPU')
+  if gpus:
+    # Restrict TensorFlow to only allocate 1GB of memory on the first GPU
+    try:
+      tf.config.experimental.set_virtual_device_configuration(
+          gpus[0],
+          [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=LIMIT),
+           tf.config.experimental.VirtualDeviceConfiguration(memory_limit=LIMIT)])
+      logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+      print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+      # Virtual devices must be set before GPUs have been initialized
+      print(e)
+
+divide_GPU( LIMIT=8192 )'''
+
 
 def create_training_instances(
     train_annot_folder,
@@ -86,7 +112,7 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
         filepath        = saved_weights_name,# + '{epoch:02d}.h5', 
         monitor         = 'loss', 
         verbose         = 1, 
-        save_best_only  = True, 
+        save_best_only  = True, #False 
         mode            = 'min', 
         period          = 1
     )
@@ -105,7 +131,8 @@ def create_callbacks(saved_weights_name, tensorboard_logs, model_to_save):
         write_graph            = True,
         write_images           = True,
     )    
-    return [early_stop, checkpoint, reduce_on_plateau, tensorboard]
+    stop_on_nan = tf.keras.callbacks.TerminateOnNaN()
+    return [early_stop, checkpoint, reduce_on_plateau, tensorboard, stop_on_nan]
 
 def create_model(
     nb_class, 
@@ -167,7 +194,8 @@ def create_model(
     else:
         train_model = template_model      
 
-    optimizer = Adam(lr=lr, clipnorm=0.001)
+    #optimizer = Adam(lr=lr, clipnorm=0.001)
+    optimizer = tensorflow.keras.optimizers.RMSprop(lr=lr)
     train_model.compile(loss=dummy_loss, optimizer=optimizer)             
 
     return train_model, infer_model
@@ -256,14 +284,21 @@ def _main_(args):
     ###############################
     callbacks = create_callbacks(config['train']['saved_weights_name'], config['train']['tensorboard_dir'], infer_model)
 
+    ### DELIA
+    #train_model.summary()
+    #tf.keras.backend.set_learning_phase(1)  
+    #tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
+    #######
+
     train_model.fit_generator(
         generator        = train_generator, 
         steps_per_epoch  = len(train_generator) * config['train']['train_times'], 
         epochs           = config['train']['nb_epochs'] + config['train']['warmup_epochs'], 
         verbose          = 2 if config['train']['debug'] else 1,
         callbacks        = callbacks, 
-        workers          = 4,
-        max_queue_size   = 8
+        #workers          = 4,
+        #max_queue_size   = 8
     )
 
     # make a GPU version of infer_model for evaluation
@@ -279,7 +314,7 @@ def _main_(args):
     # print the score
     for label, average_precision in average_precisions.items():
         print(labels[label] + ': {:.4f}'.format(average_precision))
-    print('mAP: {:.4f}'.format(sum(average_precisions.values()) / len(average_precisions)))           
+    print('mAP: {:.4f}'.format(sum(average_precisions.values()) / len(average_precisions)))         
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='train and evaluate YOLO_v3 model on any dataset')

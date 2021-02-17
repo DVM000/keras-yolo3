@@ -1,8 +1,11 @@
-from keras.layers import Conv2D, Input, BatchNormalization, LeakyReLU, ZeroPadding2D, UpSampling2D, Lambda
-from keras.layers.merge import add, concatenate
-from keras.models import Model
-from keras.engine.topology import Layer
+from tensorflow.keras.layers import Conv2D, Input, BatchNormalization, LeakyReLU, ZeroPadding2D, UpSampling2D, Lambda
+from tensorflow.keras.layers import add, concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Layer
 import tensorflow as tf
+
+tf.to_float = lambda x: tf.compat.v1.to_float(x)
+#tf.to_float = lambda x: tf.cast(x, tf.float32)
 
 debug = False
 
@@ -148,7 +151,7 @@ class YoloLayer(Layer):
         """
         Warm-up training
         """
-        batch_seen = tf.assign_add(batch_seen, 1.)
+        batch_seen = tf.compat.v1.assign_add(batch_seen, 1.)
         
         true_box_xy, true_box_wh, xywh_mask = tf.cond(tf.less(batch_seen, self.warmup_batches+1), 
                               lambda: [true_box_xy + (0.5 + self.cell_grid[:,:grid_h,:grid_w,:,:]) * (1-object_mask), 

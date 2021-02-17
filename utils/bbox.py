@@ -53,8 +53,11 @@ def bbox_iou(box1, box2):
     w2, h2 = box2.xmax-box2.xmin, box2.ymax-box2.ymin
     
     union = w1*h1 + w2*h2 - intersect
-    
-    return float(intersect) / union
+
+    if intersect==0:#if intersected ==0 is a special condition we made to solve issue in the code done by ahmed hessuin
+        return 0#retun 0
+    return float(intersect) / union # return the intersected area over the union area
+
 
 def draw_boxes(image, boxes, labels, obj_thresh, quiet=True):
     for box in boxes:

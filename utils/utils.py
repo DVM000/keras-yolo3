@@ -17,8 +17,8 @@ def makedirs(path):
 def evaluate(model, 
              generator, 
              iou_threshold=0.5,
-             obj_thresh=0.5,
-             nms_thresh=0.45,
+             obj_thresh=0.5,#0.5,
+             nms_thresh=0.45,#0.45,
              net_h=416,
              net_w=416,
              save_path=None):
@@ -38,94 +38,144 @@ def evaluate(model,
         A dict mapping class names to mAP scores.
     """    
     # gather all detections and annotations
+
+    print('WARNING: adjust thresholds!!! object detection thresh = {}, IoU positive thresh = {}, nms_thresh = {} '.format(obj_thresh, iou_threshold, nms_thresh))
     all_detections     = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
     all_annotations    = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
 
-    for i in range(generator.size()):
-        raw_image = [generator.load_image(i)]
-
-        # make the boxes and the labels
-        pred_boxes = get_yolo_boxes(model, raw_image, net_h, net_w, generator.get_anchors(), obj_thresh, nms_thresh)[0]
-
-        score = np.array([box.get_score() for box in pred_boxes])
-        pred_labels = np.array([box.label for box in pred_boxes])        
-        
-        if len(pred_boxes) > 0:
-            pred_boxes = np.array([[box.xmin, box.ymin, box.xmax, box.ymax, box.get_score()] for box in pred_boxes]) 
-        else:
-            pred_boxes = np.array([[]])  
-        
-        # sort the boxes and the labels according to scores
-        score_sort = np.argsort(-score)
-        pred_labels = pred_labels[score_sort]
-        pred_boxes  = pred_boxes[score_sort]
-        
-        # copy detections to all_detections
-        for label in range(generator.num_classes()):
-            all_detections[i][label] = pred_boxes[pred_labels == label, :]
-
-        annotations = generator.load_annotation(i)
-        
-        # copy detections to all_annotations
-        for label in range(generator.num_classes()):
-            all_annotations[i][label] = annotations[annotations[:, 4] == label, :4].copy()
-
-    # compute mAP by comparing all detections and all annotations
-    average_precisions = {}
-    
-    for label in range(generator.num_classes()):
-        false_positives = np.zeros((0,))
-        true_positives  = np.zeros((0,))
-        scores          = np.zeros((0,))
-        num_annotations = 0.0
-
+    APs = []
+    list_thresh = np.linspace(0.5,0.95,10)  # COCO evaluation metric "mAP"
+    list_thresh = [iou_threshold]           # PASCAL VOC evalutation metroc AP
+    for iou_threshold in list_thresh:  # COCO evaluation metric "mAP"
+        print('---- IoU positive thresh = {} ----'.format(iou_threshold))       
         for i in range(generator.size()):
-            detections           = all_detections[i][label]
-            annotations          = all_annotations[i][label]
-            num_annotations     += annotations.shape[0]
-            detected_annotations = []
+            raw_image = [generator.load_image(i)]
 
-            for d in detections:
-                scores = np.append(scores, d[4])
+            try:  # DVM
+                # make the boxes and the labels
+                pred_boxes = get_yolo_boxes(model, raw_image, net_h, net_w, generator.get_anchors(), obj_thresh, nms_thresh)[0]
 
-                if annotations.shape[0] == 0:
-                    false_positives = np.append(false_positives, 1)
-                    true_positives  = np.append(true_positives, 0)
-                    continue
-
-                overlaps            = compute_overlap(np.expand_dims(d, axis=0), annotations)
-                assigned_annotation = np.argmax(overlaps, axis=1)
-                max_overlap         = overlaps[0, assigned_annotation]
-
-                if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
-                    false_positives = np.append(false_positives, 0)
-                    true_positives  = np.append(true_positives, 1)
-                    detected_annotations.append(assigned_annotation)
+                score = np.array([box.get_score() for box in pred_boxes])
+                pred_labels = np.array([box.label for box in pred_boxes])        
+                
+                if len(pred_boxes) > 0:
+                    pred_boxes = np.array([[box.xmin, box.ymin, box.xmax, box.ymax, box.get_score()] for box in pred_boxes]) 
                 else:
-                    false_positives = np.append(false_positives, 1)
-                    true_positives  = np.append(true_positives, 0)
+                    pred_boxes = np.array([[]])  
+                
+                # sort the boxes and the labels according to scores
+                score_sort = np.argsort(-score)
+                pred_labels = pred_labels[score_sort]
+                pred_boxes  = pred_boxes[score_sort]
+            
+                # copy detections to all_detections
+                for label in range(generator.num_classes()):
+                    all_detections[i][label] = pred_boxes[pred_labels == label, :]
+            except:
+                print("[WARNING] omitting image {}".format(i))
+                for label in range(generator.num_classes()):
+                    all_detections[i][label] = []
 
-        # no annotations -> AP for this class is 0 (is this correct?)
-        if num_annotations == 0:
-            average_precisions[label] = 0
-            continue
+            annotations = generator.load_annotation(i)
+            
+            # copy detections to all_annotations
+            for label in range(generator.num_classes()):
+                all_annotations[i][label] = annotations[annotations[:, 4] == label, :4].copy()
 
-        # sort by score
-        indices         = np.argsort(-scores)
-        false_positives = false_positives[indices]
-        true_positives  = true_positives[indices]
+        # compute mAP by comparing all detections and all annotations
+        average_precisions = {}
+        
+        for label in range(generator.num_classes()):
+            false_positives = np.zeros((0,))
+            true_positives  = np.zeros((0,))
+            scores          = np.zeros((0,))
+            num_annotations = 0.0
 
-        # compute false positives and true positives
-        false_positives = np.cumsum(false_positives)
-        true_positives  = np.cumsum(true_positives)
+            for i in range(generator.size()):
+                detections           = all_detections[i][label]
+                annotations          = all_annotations[i][label]
+                num_annotations     += annotations.shape[0]
+                detected_annotations = []
 
-        # compute recall and precision
-        recall    = true_positives / num_annotations
-        precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
+                for d in detections:
+                    scores = np.append(scores, d[4])
 
-        # compute average precision
-        average_precision  = compute_ap(recall, precision)  
-        average_precisions[label] = average_precision
+                    if annotations.shape[0] == 0:
+                        false_positives = np.append(false_positives, 1)
+                        true_positives  = np.append(true_positives, 0)
+                        continue
+
+                    overlaps            = compute_overlap(np.expand_dims(d, axis=0), annotations)
+                    assigned_annotation = np.argmax(overlaps, axis=1)
+                    max_overlap         = overlaps[0, assigned_annotation]
+
+                    if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
+                        false_positives = np.append(false_positives, 0)
+                        true_positives  = np.append(true_positives, 1)
+                        detected_annotations.append(assigned_annotation)
+                    else:
+                        false_positives = np.append(false_positives, 1)
+                        true_positives  = np.append(true_positives, 0)
+
+            # no annotations -> AP for this class is 0 (is this correct?)
+            if num_annotations == 0:
+                average_precisions[label] = 0
+                continue
+
+            # sort by score
+            indices         = np.argsort(-scores)
+            false_positives = false_positives[indices]
+            true_positives  = true_positives[indices]
+
+            # compute false positives and true positives
+            false_positives = np.cumsum(false_positives)
+            true_positives  = np.cumsum(true_positives)
+
+            # compute recall and precision
+            recall    = true_positives / num_annotations
+            precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
+
+            # DVM. Display values and plot figures
+            r = sum(recall) / len(recall); p = sum(precision) / len(precision); f1_score = 2*r*p/(r+p); 
+            print('Label[{}] - Recall: {:.4f} - Precision: {:.4f} - F1-score: {:.4f}'.format( label, r, p, f1_score))
+            print('Label[{}] - TP: {} - FP: {} - FN: {} - Total P Annots (TP+FN): {}'.format(label, true_positives[-1], false_positives[-1],  num_annotations-true_positives[-1],  num_annotations))
+
+
+            # compute average precision
+            average_precision  = compute_ap(recall, precision)  
+            average_precisions[label] = average_precision
+            print("        with AP = {}".format(average_precision))
+
+        APs = np.append(APs, 1/generator.num_classes()*np.sum( [average_precisions[la] for la in average_precisions.keys()] ) )
+
+        import matplotlib.pyplot as plt
+        plt.figure(1)#label)
+        mrec = np.concatenate((recall, [1.]))
+        mpre = np.concatenate((precision, [0.]))
+        plt.plot(mrec, mpre, label="class#{}-thresh{}".format(label,iou_threshold)); plt.xlabel('recall'); plt.ylabel('precsision');
+
+        plt.figure(100)
+        from sklearn.metrics import auc
+        fprate = false_positives/false_positives[-1];     tprate = true_positives/true_positives[-1]
+        roc_auc = auc(fprate, tprate)
+        plt.plot(fprate, tprate, label="class#{}-thresh{} (area={:.2f})".format(label,iou_threshold,oc_auc)); plt.xlabel('FP rate'); plt.ylabel('TP rate');
+
+    plt.figure(1)
+    plt.legend()
+    save_path = './'#'./output/'
+    name_fig = "P-R_curve.png"#.format(label)
+    plt.savefig(save_path + name_fig)    
+    print('OUTPUT SAVED AS ' + save_path + name_fig)
+
+    plt.figure(100)
+    plt.legend()
+    plt.plot([0, 1], [0, 1], 'k--')
+    save_path = './'#'./output/'
+    name_fig = "ROC_curve.png"
+    plt.savefig(save_path + name_fig)    
+    print('OUTPUT SAVED AS ' + save_path + name_fig)
+
+    mAP = np.mean(APs); print("mAP {}".format(mAP))
 
     return average_precisions    
 
@@ -253,7 +303,10 @@ def get_yolo_boxes(model, images, net_h, net_w, anchors, obj_thresh, nms_thresh)
             boxes += decode_netout(yolos[j], yolo_anchors, obj_thresh, net_h, net_w)
 
         # correct the sizes of the bounding boxes
-        correct_yolo_boxes(boxes, image_h, image_w, net_h, net_w)
+        try:
+            correct_yolo_boxes(boxes, image_h, image_w, net_h, net_w)
+        except:
+           print('WARNING: exception in correct_yolo_boxes()')
 
         # suppress non-maximal boxes
         do_nms(boxes, nms_thresh)        

@@ -97,6 +97,8 @@ def _main_(argv):
         config['train']['cache_name'],
         config['model']['labels']
     )
+    print(train_imgs) ####
+    print(train_labels) ####
 
     # run k_mean to find the anchors
     annotation_dims = []
@@ -108,6 +110,7 @@ def _main_(argv):
             annotation_dims.append(tuple(map(float, (relative_w,relatice_h))))
 
     annotation_dims = np.array(annotation_dims)
+    print(annotation_dims) ####
     centroids = run_kmeans(annotation_dims, num_anchors)
 
     # write anchors to file

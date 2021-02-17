@@ -1,5 +1,14 @@
 # YOLO3 (Detection, Training, and Evaluation)
 
+## Fork Changes
+ - Change from Keras to Tensorflow.keras -- tested on tf version 1.15.0, tf.keras version 2.2.4-tf
+ - Train: change optimier to RMSprop
+ - Train: add stop_on_nan 
+ - Evaluate: print evaluation data
+ - Evaluate: calculate average AP over 10 iou thresholds (COCO mAP)
+ - Evaluate: print ROC adn P-R curves
+ - Evaluate: admit also .JPE images
+
 ## Dataset and Model
 
 Dataset | mAP | Demo | Config | Model

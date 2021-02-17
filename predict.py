@@ -6,7 +6,7 @@ import json
 import cv2
 from utils.utils import get_yolo_boxes, makedirs
 from utils.bbox import draw_boxes
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from tqdm import tqdm
 import numpy as np
 
@@ -106,21 +106,21 @@ def _main_(args):
         else:
             image_paths += [input_path]
 
-        image_paths = [inp_file for inp_file in image_paths if (inp_file[-4:] in ['.jpg', '.png', 'JPEG'])]
+        image_paths = [inp_file for inp_file in image_paths if (inp_file[-4:] in ['.jpg', '.png', 'JPEG', '.JPG'])]
 
         # the main loop
         for image_path in image_paths:
             image = cv2.imread(image_path)
-            print(image_path)
 
             # predict the bounding boxes
             boxes = get_yolo_boxes(infer_model, [image], net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)[0]
-
+            #print(boxes)
             # draw bounding boxes on the image using labels
             draw_boxes(image, boxes, config['model']['labels'], obj_thresh) 
      
             # write the image with bounding boxes to file
-            cv2.imwrite(output_path + image_path.split('/')[-1], np.uint8(image))         
+            cv2.imwrite(output_path + image_path.split('/')[-1], np.uint8(image))    
+            print('OUTPUT SAVED AS ' + output_path + image_path.split('/')[-1])     
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description='Predict with a trained yolo model')

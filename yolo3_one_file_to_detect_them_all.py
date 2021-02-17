@@ -1,15 +1,17 @@
 import argparse
 import os
 import numpy as np
-from keras.layers import Conv2D, Input, BatchNormalization, LeakyReLU, ZeroPadding2D, UpSampling2D
-from keras.layers.merge import add, concatenate
-from keras.models import Model
+from tensorflow.keras.layers import Conv2D, Input, BatchNormalization, LeakyReLU, ZeroPadding2D, UpSampling2D
+from tensorflow.keras.layers import add, concatenate
+from tensorflow.keras.models import Model
 import struct
 import cv2
 
-np.set_printoptions(threshold=np.nan)
+from time import time
+
+np.set_printoptions()#threshold=np.nan)
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"#"0"
 
 argparser = argparse.ArgumentParser(
     description='test yolov3 network with coco weights')
@@ -409,9 +411,14 @@ def _main_(args):
     image_h, image_w, _ = image.shape
     new_image = preprocess_input(image, net_h, net_w)
 
-    # run the prediction
-    yolos = yolov3.predict(new_image)
+    Ninfer = 20
+    print('Testing time for {} inferences...'.format(Ninfer))
+    t0 = time()
+    for k in range(Ninfer):
+        # run the prediction
+        yolos = yolov3.predict(new_image)
     boxes = []
+    print('prediction time ' + str((time()-t0)/Ninfer))
 
     for i in range(len(yolos)):
         # decode the output of the network
