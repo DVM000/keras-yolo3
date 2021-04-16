@@ -114,7 +114,11 @@ def _main_(args):
 
             # predict the bounding boxes
             boxes = get_yolo_boxes(infer_model, [image], net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)[0]
-            #print(boxes)
+            if len(boxes) > 0:
+                pboxes = np.array([[box.xmin, box.ymin, box.xmax, box.ymax, box.get_score()] for box in boxes])
+            print(pboxes)
+            #for k in range(len(boxes)): print(boxes[k].__dict__); import sys; sys.exit(0)
+
             # draw bounding boxes on the image using labels
             draw_boxes(image, boxes, config['model']['labels'], obj_thresh) 
      

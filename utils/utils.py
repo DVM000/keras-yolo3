@@ -67,6 +67,14 @@ def evaluate(model,
                 score_sort = np.argsort(-score)
                 pred_labels = pred_labels[score_sort]
                 pred_boxes  = pred_boxes[score_sort]
+
+                # DVM. remove bboxes if score == 0 (that is, deleted when doing NMS)
+                toremove = np.where( score[score_sort] == 0)[0] # first index of bbox to remove
+                if len(toremove):
+                    toremove = toremove[0]; 
+                    pred_boxes = pred_boxes[:toremove, :] #voy pr aqui. probar. imporimir antes y despues
+                    pred_labels = pred_labels[:toremove]
+                ##print('removed'); print(pred_boxes); print(pred_labels); break
             
                 # copy detections to all_detections
                 for label in range(generator.num_classes()):
@@ -136,10 +144,9 @@ def evaluate(model,
             precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
 
             # DVM. Display values and plot figures
-            r = sum(recall) / len(recall); p = sum(precision) / len(precision); f1_score = 2*r*p/(r+p); 
+            r = recall[-1]; p = precision[-1]; f1_score = 2*r*p/(r+p); tp = true_positives[-1]; fp = false_positives[-1]; fn = num_annotations-true_positives[-1]
             print('Label[{}] - Recall: {:.4f} - Precision: {:.4f} - F1-score: {:.4f}'.format( label, r, p, f1_score))
-            print('Label[{}] - TP: {} - FP: {} - FN: {} - Total P Annots (TP+FN): {}'.format(label, true_positives[-1], false_positives[-1],  num_annotations-true_positives[-1],  num_annotations))
-
+            print('Label[{}] - TP: {} - FP: {} - FN: {} - Total P Annots (TP+FN): {}'.format(label, tp, fp,  fn,  num_annotations))
 
             # compute average precision
             average_precision  = compute_ap(recall, precision)  
@@ -158,24 +165,23 @@ def evaluate(model,
         from sklearn.metrics import auc
         fprate = false_positives/false_positives[-1];     tprate = true_positives/true_positives[-1]
         roc_auc = auc(fprate, tprate)
-        plt.plot(fprate, tprate, label="class#{}-thresh{} (area={:.2f})".format(label,iou_threshold,oc_auc)); plt.xlabel('FP rate'); plt.ylabel('TP rate');
+        plt.plot(fprate, tprate, label="class#{}-thresh{} (area={:.2f})".format(label,iou_threshold,roc_auc)); plt.xlabel('FP rate'); plt.ylabel('TP rate');
 
     plt.figure(1)
     plt.legend()
     save_path = './'#'./output/'
     name_fig = "P-R_curve.png"#.format(label)
-    plt.savefig(save_path + name_fig)    
-    print('OUTPUT SAVED AS ' + save_path + name_fig)
+    plt.savefig(save_path + name_fig)    ; print('OUTPUT SAVED AS ' + save_path + name_fig)
 
     plt.figure(100)
     plt.legend()
     plt.plot([0, 1], [0, 1], 'k--')
     save_path = './'#'./output/'
     name_fig = "ROC_curve.png"
-    plt.savefig(save_path + name_fig)    
-    print('OUTPUT SAVED AS ' + save_path + name_fig)
+    plt.savefig(save_path + name_fig)    ; print('OUTPUT SAVED AS ' + save_path + name_fig)
 
-    mAP = np.mean(APs); print("mAP {}".format(mAP))
+    if len(list_thresh)>1: 
+        mAP = np.mean(APs); print("COCO mAP {}".format(mAP))
 
     return average_precisions    
 
@@ -213,7 +219,7 @@ def do_nms(boxes, nms_thresh):
             for j in range(i+1, len(sorted_indices)):
                 index_j = sorted_indices[j]
 
-                if bbox_iou(boxes[index_i], boxes[index_j]) >= nms_thresh:
+                if bbox_iou(boxes[index_i], boxes[index_j]) >= nms_thresh: # then remove proposal
                     boxes[index_j].classes[c] = 0
 
 def decode_netout(netout, anchors, obj_thresh, net_h, net_w):
