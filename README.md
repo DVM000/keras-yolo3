@@ -9,6 +9,8 @@
  - Evaluate: calculate average AP over 10 iou thresholds (COCO mAP)
  - Evaluate: print ROC adn P-R curves
  - Evaluate: admit also .JPG images
+ - Predict: admit also .AVI videos. And save 1 bbox per frame
+ - Detect_YOLO_TFLite included
 
 ## Dataset and Model
 
@@ -26,7 +28,7 @@ VOC (20 classes) (http://host.robots.ox.ac.uk/pascal/VOC/voc2012/) | 72% | https
 - [x] mAP Evaluation
 - [x] Multi-GPU training
 - [x] Evaluation on VOC
-- [ ] Evaluation on COCO
+- [x] Evaluation on COCO
 - [ ] MobileNet, DenseNet, ResNet, and VGG backends
 
 ## Installing

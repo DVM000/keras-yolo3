@@ -45,7 +45,7 @@ def evaluate(model,
 
     APs = []
     list_thresh = np.linspace(0.5,0.95,10)  # COCO evaluation metric "mAP"
-    list_thresh = [iou_threshold]           # PASCAL VOC evalutation metroc AP
+    list_thresh = [iou_threshold]           # PASCAL VOC evalutation metric AP
     for iou_threshold in list_thresh:  # COCO evaluation metric "mAP"
         print('---- IoU positive thresh = {} ----'.format(iou_threshold))       
         for i in range(generator.size()):
@@ -97,6 +97,7 @@ def evaluate(model,
             false_positives = np.zeros((0,))
             true_positives  = np.zeros((0,))
             scores          = np.zeros((0,))
+            TN              = 0
             num_annotations = 0.0
 
             for i in range(generator.size()):
@@ -125,6 +126,10 @@ def evaluate(model,
                         false_positives = np.append(false_positives, 1)
                         true_positives  = np.append(true_positives, 0)
 
+                if annotations.shape[0] == 0 and detections.shape[0] == 0 :
+                        TN += 1
+                        continue
+
             # no annotations -> AP for this class is 0 (is this correct?)
             if num_annotations == 0:
                 average_precisions[label] = 0
@@ -147,6 +152,7 @@ def evaluate(model,
             r = recall[-1]; p = precision[-1]; f1_score = 2*r*p/(r+p); tp = true_positives[-1]; fp = false_positives[-1]; fn = num_annotations-true_positives[-1]
             print('Label[{}] - Recall: {:.4f} - Precision: {:.4f} - F1-score: {:.4f}'.format( label, r, p, f1_score))
             print('Label[{}] - TP: {} - FP: {} - FN: {} - Total P Annots (TP+FN): {}'.format(label, tp, fp,  fn,  num_annotations))
+            print('            TN: {}'.format(TN))
 
             # compute average precision
             average_precision  = compute_ap(recall, precision)  
@@ -159,7 +165,7 @@ def evaluate(model,
         plt.figure(1)#label)
         mrec = np.concatenate((recall, [1.]))
         mpre = np.concatenate((precision, [0.]))
-        plt.plot(mrec, mpre, label="class#{}-thresh{}".format(label,iou_threshold)); plt.xlabel('recall'); plt.ylabel('precsision');
+        plt.plot(mrec, mpre, label="class#{}-thresh{}".format(label,iou_threshold)); plt.xlabel('recall'); plt.ylabel('precision');
 
         plt.figure(100)
         from sklearn.metrics import auc

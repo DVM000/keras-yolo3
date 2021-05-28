@@ -55,8 +55,8 @@ def _main_(args):
             if cv2.waitKey(1) == 27: 
                 break  # esc to quit
         cv2.destroyAllWindows()        
-    elif input_path[-4:] == '.mp4': # do detection on a video  
-        video_out = output_path + input_path.split('/')[-1]
+    elif input_path[-4:] == '.mp4' or input_path[-4:] == '.AVI': # do detection on a video  
+        video_out = output_path + input_path.split('/')[-1].replace('.AVI','.mp4')
         video_reader = cv2.VideoCapture(input_path)
 
         nb_frames = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -64,7 +64,7 @@ def _main_(args):
         frame_w = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
 
         video_writer = cv2.VideoWriter(video_out,
-                               cv2.VideoWriter_fourcc(*'MPEG'), 
+                               cv2.VideoWriter_fourcc(*'MP4V'),#(*'MPEG'), 
                                50.0, 
                                (frame_w, frame_h))
         # the main loop
@@ -83,8 +83,10 @@ def _main_(args):
                     batch_boxes = get_yolo_boxes(infer_model, images, net_h, net_w, config['model']['anchors'], obj_thresh, nms_thresh)
 
                     for i in range(len(images)):
+                        bbox0 = [batch_boxes[i][0]] if len(batch_boxes[i]) else []
                         # draw bounding boxes on the image using labels
-                        draw_boxes(images[i], batch_boxes[i], config['model']['labels'], obj_thresh)   
+                        #draw_boxes(images[i], batch_boxes[i], config['model']['labels'], obj_thresh)  
+                        draw_boxes(images[i], bbox0, config['model']['labels'], obj_thresh) # take only 1st bbox  
 
                         # show the video with detection bounding boxes          
                         if show_window: cv2.imshow('video with bboxes', images[i])  
@@ -110,6 +112,7 @@ def _main_(args):
 
         # the main loop
         for image_path in image_paths:
+            #image_path = '/dataset/RZSS_images/1_animal_empty_r/animal/6.JPG'
             image = cv2.imread(image_path)
 
             # predict the bounding boxes
@@ -117,11 +120,12 @@ def _main_(args):
             if len(boxes) > 0:
                 pboxes = np.array([[box.xmin, box.ymin, box.xmax, box.ymax, box.get_score()] for box in boxes])
             print(pboxes)
+            #print(boxes[0].xmin, boxes[0].ymin, boxes[0].xmax, boxes[0].ymax, boxes[0].c, boxes[0].classes ); 
             #for k in range(len(boxes)): print(boxes[k].__dict__); import sys; sys.exit(0)
 
             # draw bounding boxes on the image using labels
             draw_boxes(image, boxes, config['model']['labels'], obj_thresh) 
-     
+            #import sys; sys.exit(0)
             # write the image with bounding boxes to file
             cv2.imwrite(output_path + image_path.split('/')[-1], np.uint8(image))    
             print('OUTPUT SAVED AS ' + output_path + image_path.split('/')[-1])     
